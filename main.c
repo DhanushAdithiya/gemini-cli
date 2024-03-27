@@ -48,11 +48,10 @@ int process_resp(struct memory *response) {
   json_object *candidates, *content, *part, *text;
   int exists;
 
-
   json_obj = json_tokener_parse(response->response);
   candidates = json_object_object_get(json_obj, "candidates");
 
-	json_object *can_obj = json_object_array_get_idx(candidates, 0);
+  json_object *can_obj = json_object_array_get_idx(candidates, 0);
 
   exists = json_object_object_get_ex(can_obj, "content", &content);
   if (exists == false) {
@@ -65,8 +64,7 @@ int process_resp(struct memory *response) {
     return 1;
   }
 
-
-	json_object *part_obj = json_object_array_get_idx(part, 0);
+  json_object *part_obj = json_object_array_get_idx(part, 0);
 
   exists = json_object_object_get_ex(part_obj, "text", &text);
   if (exists == false) {
@@ -74,10 +72,50 @@ int process_resp(struct memory *response) {
     return 1;
   }
 
-	printf("%s",json_object_get_string(text));
-
+  printf("%s\n", json_object_get_string(text));
 
   return 0;
+}
+
+char *inp_to_json(char *input) {
+
+  if (input[0] == '\0') {
+    return NULL;
+  }
+
+  input[strlen(input) - 1] = '\0';
+
+  json_object *outer, *contents, *parts, *text;
+  json_object *text_arr, *parts_arr;
+
+  text = json_object_new_object();
+  json_object_object_add(text, "text", json_object_new_string(input));
+
+  text_arr = json_object_new_array();
+  json_object_array_add(text_arr, text);
+
+  parts = json_object_new_object();
+  json_object_object_add(parts, "parts", text_arr);
+
+  parts_arr = json_object_new_array();
+  json_object_array_add(parts_arr, parts);
+
+  contents = json_object_new_object();
+  json_object_object_add(contents, "contents", parts_arr);
+
+  const char *contents_str = json_object_get_string(contents);
+
+  char *response = NULL;
+  size_t len = strlen(contents_str + 1);
+  response = malloc(len * sizeof(char));
+
+  if (response == NULL) {
+    return NULL;
+  }
+
+  strcpy(response, contents_str);
+
+  return response;
 }
 
 int main(void) {
@@ -85,42 +123,39 @@ int main(void) {
   CURL *handle = curl_easy_init();
   CURLcode res;
 
-  char *json = "{\
-		\"contents\": [{\
-				\"parts\":[{\
-						\"text\": \"Write a story about a magic backpack.\"\
-				}]\
-		}]\
-	}";
-
   const char *s = getenv("URL");
-  printf("ASK GEMINI:\n");
-  char *prompt = NULL;
-  prompt = read_line();
-  struct memory response = {0};
+  while (true) {
+    printf("ASK GEMINI:\n");
+    char *prompt = NULL;
+    prompt = read_line();
+    char *json = NULL;
+    json = inp_to_json(prompt);
 
-  if (handle) {
-    struct curl_slist *hs = NULL;
-    hs = curl_slist_append(hs, "Content-Type: application/json");
+    struct memory response = {0};
 
-    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, callback);
-    curl_easy_setopt(handle, CURLOPT_URL, s);
-    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(handle, CURLOPT_HTTPHEADER, hs);
-    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, json);
+    if (handle) {
+      struct curl_slist *hs = NULL;
+      hs = curl_slist_append(hs, "Content-Type: application/json");
 
-    res = curl_easy_perform(handle);
+      curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, callback);
+      curl_easy_setopt(handle, CURLOPT_URL, s);
+      curl_easy_setopt(handle, CURLOPT_WRITEDATA, &response);
+      curl_easy_setopt(handle, CURLOPT_HTTPHEADER, hs);
+      curl_easy_setopt(handle, CURLOPT_POSTFIELDS, json);
 
-    if (res != CURLE_OK)
-      printf("ERROR");
+      res = curl_easy_perform(handle);
 
-    if (response.response) {
-      process_resp(&response);
+      if (res != CURLE_OK)
+        printf("ERROR");
+
+      if (response.response) {
+        process_resp(&response);
+      }
+
+      curl_easy_cleanup(handle);
     }
 
-    curl_easy_cleanup(handle);
+    free(prompt);
   }
-
-  free(prompt);
   return 0;
 }
