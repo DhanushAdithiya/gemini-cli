@@ -1,5 +1,15 @@
-# Gemini Temrinal Prompting
+# Gemini Terminal Prompt
 
-This is a small personal project for me to be able to prompt Google's Gemini AI from within my terminal.
+This is a simple tool to interact with Google's Gemini AI from your terminal.
 
-`Note: The code is going to be a little ugly since this is my first project in C`
+## Setup:
+
+-    Get a Gemini API key.
+-    Set URL environment variable with your key (see code for format)
+-    Compile and run the code
+
+###    Usage:
+
+Type your prompt and press Enter. Gemini's response will be displayed.
+
+Enjoy!
