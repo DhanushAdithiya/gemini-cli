@@ -1,8 +1,5 @@
 #include <curl/curl.h>
 #include <json-c/json.h>
-#include <json-c/json_object.h>
-#include <json-c/json_tokener.h>
-#include <json-c/json_types.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -124,6 +121,15 @@ int main(void) {
   CURLcode res;
 
   const char *s = getenv("URL");
+
+  if (handle) {
+    struct curl_slist *hs = NULL;
+    hs = curl_slist_append(hs, "Content-Type: application/json");
+    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, callback);
+    curl_easy_setopt(handle, CURLOPT_URL, s);
+    curl_easy_setopt(handle, CURLOPT_HTTPHEADER, hs);
+  } 
+
   while (true) {
     printf("ASK GEMINI:\n");
     char *prompt = NULL;
@@ -133,29 +139,18 @@ int main(void) {
 
     struct memory response = {0};
 
-    if (handle) {
-      struct curl_slist *hs = NULL;
-      hs = curl_slist_append(hs, "Content-Type: application/json");
+    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, json);
+    res = curl_easy_perform(handle);
 
-      curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, callback);
-      curl_easy_setopt(handle, CURLOPT_URL, s);
-      curl_easy_setopt(handle, CURLOPT_WRITEDATA, &response);
-      curl_easy_setopt(handle, CURLOPT_HTTPHEADER, hs);
-      curl_easy_setopt(handle, CURLOPT_POSTFIELDS, json);
+    if (res != CURLE_OK)
+      printf("ERROR");
 
-      res = curl_easy_perform(handle);
-
-      if (res != CURLE_OK)
-        printf("ERROR");
-
-      if (response.response) {
-        process_resp(&response);
-      }
-
-      curl_easy_cleanup(handle);
+    if (response.response) {
+      process_resp(&response);
     }
-
-    free(prompt);
   }
+
+  curl_easy_cleanup(handle);
   return 0;
 }
